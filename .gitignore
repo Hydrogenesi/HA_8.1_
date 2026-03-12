@@ -1,595 +1,147 @@
-﻿"""
-Stabilizer Extraction - Computational Implementation
-Hydrogenesis Cosmological Operator
+# ============================================================
+# .gitignore — JWST Deep Field Image Project
+# ============================================================
+# Raw science data, calibration files, and large outputs
+# should NOT be committed to version control.
+# Use DVC, Zenodo, or MAST archive links instead.
 
-This module implements the Stabilizer Extraction operator,
-modeling the removal of binding cores from galactic structures.
-"""
+# ──────────────────────────────────────────
+# RAW SCIENCE DATA (MAST / STScI downloads)
+# ──────────────────────────────────────────
+raw/
+data/raw/
+*.fits
+*.fit
+*.fts
+*.fits.gz
+*.asdf
+*_uncal.fits
+*_rate.fits
+*_rateints.fits
 
-from dataclasses import dataclass
-from typing import Tuple, Optional
-from enum import Enum
+# ──────────────────────────────────────────
+# PIPELINE STAGE OUTPUTS (jwst pipeline)
+# ──────────────────────────────────────────
+# Stage 1 — Detector-level corrections
+*_trapsfilled.fits
+*_dark.fits
+*_jump.fits
 
+# Stage 2 — Instrument-mode corrections
+*_cal.fits
+*_calints.fits
+*_i2d.fits
+*_s2d.fits
+*_x1d.fits
+*_s3d.fits
 
-class CoreState(Enum):
-    """Possible states of a galactic core."""
-    BOUND = "bound"
-    ISOLATING = "isolating"
-    EXTRACTED = "extracted"
-    VOID = "void"
-    LINEAGE_READY = "lineage_ready"
+# Stage 3 — Ensemble / mosaic products
+*_crf.fits
+*_drizzle.fits
+*_mosaic.fits
+mosaics/
+stage1/
+stage2/
+stage3/
 
+# ──────────────────────────────────────────
+# PROCESSED & SCIENCE-READY IMAGES
+# ──────────────────────────────────────────
+# Large processed TIFFs / PNGs for publication
+processed/
+*_final.tiff
+*_hires.tiff
+*_rgb.tiff
+*_color_composite.png
+*_release.png
+exports/
 
-@dataclass
-class Stabilizer:
-    """Represents a stabilizing element (neutron-equivalent)."""
-    mass: float  # Solar masses
-    binding_energy: float  # ergs
-    angular_momentum: float  # g·cm²/s
-    
-    def __repr__(self):
-        return f"Stabilizer(M={self.mass:.2e}, E={self.binding_energy:.2e})"
+# ──────────────────────────────────────────
+# PHOTOMETRY & CATALOG FILES
+# ──────────────────────────────────────────
+catalogs/
+*.cat
+*.reg
+*_phot.ecsv
+*_sources.fits
+*_segmap.fits
+*_hotpix.fits
 
+# ──────────────────────────────────────────
+# CALIBRATION & REFERENCE FILES (CRDS)
+# ──────────────────────────────────────────
+crds_cache/
+references/
+*.rmap
+*_flat.fits
+*_bias.fits
+*_linearity.fits
+*_saturation.fits
+*_superbias.fits
+*_gain.fits
+*_readnoise.fits
+*_distortion.fits
+*_filteroffset.fits
+*_photom.fits
+*_apcorr.fits
 
-@dataclass
-class GalacticCore:
-    """Represents a galactic core structure."""
-    total_mass: float
-    stabilizer: Optional[Stabilizer]
-    state: CoreState
-    lineage_id: str
-    
-    def isolate_binding_element(self) -> Stabilizer:
-        """REMOVE phase: Initiate gravitational disruption and core isolation."""
-        if self.stabilizer is None:
-            raise ValueError("No stabilizer present to isolate")
-        
-        self.state = CoreState.ISOLATING
-        print(f"[REMOVE] Isolating stabilizer from core {self.lineage_id}")
-        print(f"         Stabilizer mass: {self.stabilizer.mass:.2e} M☉")
-        return self.stabilizer
-    
-    def remove(self, stabilizer: Stabilizer) -> 'VoidCore':
-        """STRIP phase: Detach stabilizer element from host structure."""
-        if self.stabilizer != stabilizer:
-            raise ValueError("Stabilizer mismatch during removal")
-        
-        self.stabilizer = None
-        self.state = CoreState.EXTRACTED
-        print(f"[STRIP] Stabilizer extracted from {self.lineage_id}")
-        print(f"        Energy released: {stabilizer.binding_energy:.2e} ergs")
-        
-        return VoidCore(
-            residual_mass=self.total_mass - stabilizer.mass,
-            lineage_id=self.lineage_id,
-            extracted_stabilizer=stabilizer
-        )
+# ──────────────────────────────────────────
+# ASTROMETRY & WCS
+# ──────────────────────────────────────────
+astrometry/
+*.wcs
+*_wcs.fits
+astrometry_net_cache/
+.astrometry/
 
-
-@dataclass
-class VoidCore:
-    """Represents a void-state core after stabilizer extraction."""
-    residual_mass: float
-    lineage_id: str
-    extracted_stabilizer: Stabilizer
-    state: CoreState = CoreState.VOID
-    
-    def prepare_lineage(self) -> 'LineageReadyCore':
-        """PREPARE phase: Enter lineage-ready configuration."""
-        self.state = CoreState.LINEAGE_READY
-        print(f"[PREPARE] Void-core {self.lineage_id} ready for replication")
-        print(f"          Residual mass: {self.residual_mass:.2e} M☉")
-        print(f"          Replication potential: ACTIVE")
-        
-        return LineageReadyCore(
-            residual_mass=self.residual_mass,
-            lineage_id=self.lineage_id,
-            stabilizer_signature=self.extracted_stabilizer,
-            replication_potential=True
-        )
-
-
-@dataclass
-class LineageReadyCore:
-    """Represents a core prepared for AGN replication."""
-    residual_mass: float
-    lineage_id: str
-    stabilizer_signature: Stabilizer
-    replication_potential: bool
-
-
-def stabilizer_extraction(galactic_core: GalacticCore) -> Tuple[LineageReadyCore, Stabilizer]:
-    """
-    Full Stabilizer Extraction operator implementation.
-    
-    Implements the three-phase process:
-    1. REMOVE: Isolate binding element
-    2. STRIP: Extract stabilizer from structure
-    3. PREPARE: Configure for lineage replication
-    
-    Args:
-        galactic_core: The galactic structure to process
-        
-    Returns:
-        Tuple of (lineage_ready_core, extracted_stabilizer)
-    """
-    print(f"\n{'='*60}")
-    print(f"  STABILIZER EXTRACTION: {galactic_core.lineage_id}")
-    print(f"{'='*60}\n")
-    
-    # Phase 1: REMOVE
-    stabilizer = galactic_core.isolate_binding_element()
-    
-    # Phase 2: STRIP
-    void_core = galactic_core.remove(stabilizer)
-    
-    # Phase 3: PREPARE
-    lineage_ready = void_core.prepare_lineage()
-    
-    print(f"\n{'='*60}")
-    print(f"  EXTRACTION COMPLETE")
-    print(f"{'='*60}\n")
-    
-
-@'
-"""
-Stabilizer Extraction - Computational Implementation
-Hydrogenesis Cosmological Operator
-
-This module implements the Stabilizer Extraction operator,
-modeling the removal of binding cores from galactic structures.
-"""
-
-from dataclasses import dataclass
-from typing import Tuple, Optional
-from enum import Enum
-
-
-class CoreState(Enum):
-    """Possible states of a galactic core."""
-    BOUND = "bound"
-    ISOLATING = "isolating"
-    EXTRACTED = "extracted"
-    VOID = "void"
-    LINEAGE_READY = "lineage_ready"
-
-
-@dataclass
-class Stabilizer:
-    """Represents a stabilizing element (neutron-equivalent)."""
-    mass: float  # Solar masses
-    binding_energy: float  # ergs
-    angular_momentum: float  # g·cm²/s
-    
-    def __repr__(self):
-        return f"Stabilizer(M={self.mass:.2e}, E={self.binding_energy:.2e})"
-
-
-@dataclass
-class GalacticCore:
-    """Represents a galactic core structure."""
-    total_mass: float
-    stabilizer: Optional[Stabilizer]
-    state: CoreState
-    lineage_id: str
-    
-    def isolate_binding_element(self) -> Stabilizer:
-        """REMOVE phase: Initiate gravitational disruption and core isolation."""
-        if self.stabilizer is None:
-            raise ValueError("No stabilizer present to isolate")
-        
-        self.state = CoreState.ISOLATING
-        print(f"[REMOVE] Isolating stabilizer from core {self.lineage_id}")
-        print(f"         Stabilizer mass: {self.stabilizer.mass:.2e} M☉")
-        return self.stabilizer
-    
-    def remove(self, stabilizer: Stabilizer) -> 'VoidCore':
-        """STRIP phase: Detach stabilizer element from host structure."""
-        if self.stabilizer != stabilizer:
-            raise ValueError("Stabilizer mismatch during removal")
-        
-        self.stabilizer = None
-        self.state = CoreState.EXTRACTED
-        print(f"[STRIP] Stabilizer extracted from {self.lineage_id}")
-        print(f"        Energy released: {stabilizer.binding_energy:.2e} ergs")
-        
-        return VoidCore(
-            residual_mass=self.total_mass - stabilizer.mass,
-            lineage_id=self.lineage_id,
-            extracted_stabilizer=stabilizer
-        )
-
-
-@dataclass
-class VoidCore:
-    """Represents a void-state core after stabilizer extraction."""
-    residual_mass: float
-    lineage_id: str
-    extracted_stabilizer: Stabilizer
-    state: CoreState = CoreState.VOID
-    
-    def prepare_lineage(self) -> 'LineageReadyCore':
-        """PREPARE phase: Enter lineage-ready configuration."""
-        self.state = CoreState.LINEAGE_READY
-        print(f"[PREPARE] Void-core {self.lineage_id} ready for replication")
-        print(f"          Residual mass: {self.residual_mass:.2e} M☉")
-        print(f"          Replication potential: ACTIVE")
-        
-        return LineageReadyCore(
-            residual_mass=self.residual_mass,
-            lineage_id=self.lineage_id,
-            stabilizer_signature=self.extracted_stabilizer,
-            replication_potential=True
-        )
-
-
-@dataclass
-class LineageReadyCore:
-    """Represents a core prepared for AGN replication."""
-    residual_mass: float
-    lineage_id: str
-    stabilizer_signature: Stabilizer
-    replication_potential: bool
-
-
-def stabilizer_extraction(galactic_core: GalacticCore) -> Tuple[LineageReadyCore, Stabilizer]:
-    """
-    Full Stabilizer Extraction operator implementation.
-    
-    Implements the three-phase process:
-    1. REMOVE: Isolate binding element
-    2. STRIP: Extract stabilizer from structure
-    3. PREPARE: Configure for lineage replication
-    
-    Args:
-        galactic_core: The galactic structure to process
-        
-    Returns:
-        Tuple of (lineage_ready_core, extracted_stabilizer)
-    """
-    print(f"\n{'='*60}")
-    print(f"  STABILIZER EXTRACTION: {galactic_core.lineage_id}")
-    print(f"{'='*60}\n")
-    
-    # Phase 1: REMOVE
-    stabilizer = galactic_core.isolate_binding_element()
-    
-    # Phase 2: STRIP
-    void_core = galactic_core.remove(stabilizer)
-    
-    # Phase 3: PREPARE
-    lineage_ready = void_core.prepare_lineage()
-    
-    print(f"\n{'='*60}")
-    print(f"  EXTRACTION COMPLETE")
-    print(f"{'='*60}\n")
-    
-
-@'
-"""
-Curvature Residue - Computational Implementation
-Hydrogenesis Cosmological Operator
-
-This module implements the Curvature Residue operator,
-modeling memory encoding in spacetime geometry after collapse.
-"""
-
-from dataclasses import dataclass
-from typing import List
-import math
-
-
-@dataclass
-class CollapsedLineage:
-    """Structure that has undergone collapse."""
-    lineage_id: str
-    pre_collapse_mass: float
-    angular_momentum: float
-    collapse_time: float  # Arbitrary time units
-    
-    def extract_center(self) -> 'VoidPoint':
-        """SCAR phase: Extract collapse center and begin curvature formation."""
-        print(f"[SCAR] Extracting center from collapsed lineage {self.lineage_id}")
-        print(f"       Pre-collapse mass: {self.pre_collapse_mass:.2e} M☉")
-        
-        # Schwarzschild radius calculation (simplified)
-        G = 6.67e-11  # Gravitational constant
-        c = 3e8  # Speed of light
-        M_sun = 1.989e30  # Solar mass in kg
-        schwarzschild_radius = (2 * G * self.pre_collapse_mass * M_sun) / (c**2)
-        
-        return VoidPoint(
-            lineage_id=self.lineage_id,
-            schwarzschild_radius=schwarzschild_radius,
-            mass_signature=self.pre_collapse_mass,
-            angular_momentum=self.angular_momentum,
-            collapse_time=self.collapse_time
-        )
-
-
-@dataclass
-class VoidPoint:
-    """Central point of collapsed structure."""
-    lineage_id: str
-    schwarzschild_radius: float  # meters
-    mass_signature: float
-    angular_momentum: float
-    collapse_time: float
-    
-    def scar_spacetime(self) -> 'CurvatureField':
-        """VOID phase: Encode structure in spacetime curvature."""
-        print(f"[VOID] Scarring spacetime for {self.lineage_id}")
-        print(f"       Event horizon radius: {self.schwarzschild_radius:.2e} m")
-        
-        # Calculate curvature at various distances
-        distances = [
-            self.schwarzschild_radius * 2,
-            self.schwarzschild_radius * 10,
-            self.schwarzschild_radius * 100,
-            self.schwarzschild_radius * 1000
-        ]
-        
-        curvature_values = []
-        M_sun = 1.989e30
-        for r in distances:
-            # Simplified curvature scalar (proportional to M/r³)
-            curvature = (self.mass_signature * M_sun) / (r ** 3)
-            curvature_values.append(curvature**
-
-@'
-"""
-Lineage Logic - Computational Implementation
-Hydrogenesis Cosmological Operator
-
-This module implements the Lineage Logic operator,
-modeling cosmic continuity and evolutionary recursion.
-"""
-
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional
-from datetime import datetime
-
-
-@dataclass
-class Structure:
-    """Generic cosmic structure."""
-    structure_id: str
-    mass: float
-    generation: int
-    parent_id: Optional[str] = None
-    children: List[str] = field(default_factory=list)
-    residue_markers: List[str] = field(default_factory=list)
-    
-    def replicate(self, num_descendants: int = 2) -> List['Structure']:
-        """Generate descendant structures."""
-        descendants = []
-        mass_per_child = self.mass / num_descendants
-        
-        for i in range(num_descendants):
-            child_id = f"{self.structure_id}-D{i+1}"
-            child = Structure(
-                structure_id=child_id,
-                mass=mass_per_child * (0.9 + 0.2 * (i / num_descendants)),  # Slight variation
-                generation=self.generation + 1,
-                parent_id=self.structure_id
-            )
-            descendants.append(child)
-            self.children.append(child_id)
-        
-        return descendants
-
-
-@dataclass
-class ResidueMarker:
-    """Memory marker from collapsed lineage."""
-    collapsed_id: str
-    collapse_time: str
-    mass_memory: float
-    parent_lineage: str
-
-
-class LineageLogic:
-    """
-    Universal recursion engine for cosmic structure continuity.
-    
-    Tracks lineage trees, manages replication, and preserves
-    collapse history through residue markers.
-    """
-    
-    def __init__(self, root_structure: Structure):
-        """
-        Initialize lineage system with root structure.
-        
-        Args:
-            root_structure: Origin point of lineage tree
-        """
-        self.root = root_structure
-        self.lineage_tree: Dict[str, Structure] = {root_structure.structure_id: root_structure}
-        self.history_trace: List[ResidueMarker] = []
-        self.active_lineages: List[str] = [root_structure.structure_id]
-        self.collapsed_lineages: List[str] = []
-        
-        print(f"[ROOT] Lineage system initialized: {root_structure.structure_id}")
-        print(f"       Root mass: {root_structure.mass:.2e} M☉")
-    
-    def recurse(self, structure_id: str, num_descendants: int = 2) -> List[Structure]:
-        """
-        SPLIT phase: Generate descendant structures through replication.
-        
-        Args:
-            structure_id: ID of structure to replicate
-            num_descendants: Number of descendants to generate
-            
-        Returns:
-            List of newly created descendant structures
-        """
-        if structure_id not in self.lineage_tree:
-            raise ValueError(f"Structure {structure_id} not found in lineage tree")
-        
-        parent = self.lineage_tree[structure_id]
-        
-        print(f"\n[SPLIT] Replicating {structure_id}")
-        print(f"        Parent mass: {parent.mass:.2e} M☉")
-        print(f"        Generating {num_descendants} descendants")
-        
-        descendants = parent.replicate(num_descendants)
-        
-        for desc in descendants:
-            self.lineage_tree[desc.structure_id] = desc
-            self.active_lineages.append(desc.structure_id)
-            print(f"        • Created {desc.structure_id} (M={desc.mass:.2e} M☉)")
-        
-        return descendants
-    
-    def preserve(self, structure_id: str, collapse_reason: str = "natural_evolution") -> ResidueMarker:
-        """
-        TRACE phase: Record collapse event in history thread.
-        
-        Args:
-            structure_id: ID of collapsing structure
-            collapse_reason: Reason for collapse
-            
-        Returns:
-            ResidueMarker encoding collapse memory
-        """
-        if structure_id not in self.lineage_tree:
-            raise ValueError(f"Structure {structure_id} not found")
-        
-        structure = self.lineage_tree[structure_id]
-        
-        print(f"\n[TRACE] Recording collapse: {structure_id}")
-        print(f"        Reason: {collapse_reason}")
-        print(f"        Mass memory: {structure.mass:.2e} M☉")
-        
-        residue = ResidueMarker(
-            collapsed_id=structure_id,
-            collapse_time=datetime.now().isoformat(),
-            mass_memory=structure.mass,
-            parent_lineage=structure.parent_id or "ROOT"
-        )
-        
-        self.history_trace.append(residue)
-        self.collapsed_lineages.append(structure_id)
-        
-        if structure_id in self.active_lineages:
-            self.active_lineages.remove(structure_id)
-        
-        # Mark residue in parent if exists
-        if structure.parent_id and structure.parent_id in self.lineage_tree:
-            parent = self.lineage_tree[structure.parent_id]
-            parent.residue_markers.append(structure_id)
-        
-        print(f"        Residue marker create*
-
-Write-Host "`n========================================" -ForegroundColor Cyan
-Write-Host "  ALL PYTHON IMPLEMENTATIONS COMPLETE" -ForegroundColor Cyan
-Write-Host "========================================`n" -ForegroundColor Cyan
-
-Write-Host "Verifying files..." -ForegroundColor Yellow
-Get-ChildItem "HYDROGENESIS\implementations\*.py" | ForEach-Object {
-    $size = [math]::Round($_.Length / 1KB, 2)
-    Write-Host "  ✓ $($_.Name) - ${size}KB" -ForegroundColor Green
-}
-
-Write-Host "`n========================================" -ForegroundColor Cyan
-Write-Host "  HYDROGENESIS CODEX IS COMPLETE" -ForegroundColor Cyan
-Write-Host "========================================`n" -ForegroundColor Cyan
-
-Write-Host "Next steps:" -ForegroundColor Yellow
-Write-Host "  1. cd HYDROGENESIS" -ForegroundColor White
-Write-Host "  2. python implementations\stabilizer_extraction.py" -ForegroundColor White
-Write-Host "  3. Test each operator" -ForegroundColor White
-Write-Host "  4. Initialize Git: git init" -ForegroundColor White
-Write-Host "  5. Create GitHub repo and push" -ForegroundColor White
-
-Write-Host "`n🌌 The Codex is ignited." -ForegroundColor Cyan
-cd HYDROGENESIS
-python implementations\stabilizer_extraction.py
-python implementations\agn_replication.py
-python implementations\curvature_residue.py
-python implementations\lineage_logic.py
-cd C:\Users\Infin\OneDrive\Desktop\HYDROGENESIS
-Get-ChildItem -Recurse
-pwd
-cd C:\Users\Infin\OneDrive\Desktop\HYDROGENESIS
-pwd
-Get-ChildItem -Recurse
-python implementations\stabilizer_extraction.py
-Get-ChildItem -Recurse -File | Measure-Object | Select-Object Count
-python3 implementations\stabilizer_extraction.py
-Get-ChildItem -Recurse -File | Measure-Object | Select-Object Count
-Get-ChildItem -Recurse
-python implementations\stabilizer_extraction.py
-Initial Core Configuration:
-  Total mass: 1.00e+12 M☉
-  Stabilizer: Stabilizer(M=1.00e+09, E=1.00e+52)
-  ...
-python implementations\agn_replication.py
-python implementations\curvature_residue.py
-cd C:\Users\Infin\OneDrive\Desktop\HYDROGENESIS
-Write-Host "`n========================================" -ForegroundColor Cyan
-Write-Host "  STRUCTURE VERIFICATION" -ForegroundColor Cyan
-Write-Host "========================================`n" -ForegroundColor Cyan
-
-Write-Host "Current location:" -ForegroundColor Yellow
-pwd
-
-Write-Host "`nDirectory structure:" -ForegroundColor Yellow
-Get-ChildItem -Recurse -Name | Sort-Object
-
-Write-Host "`nFile count:" -ForegroundColor Yellow
-$fileCount = (Get-ChildItem -Recurse -File).Count
-Write-Host "  Total files: $fileCount" -ForegroundColor Green
-
-Write-Host "`nExpected files: ~15" -ForegroundColor Yellow
-if ($fileCount -ge 14) {
-    Write-Host "  ✓ Structure looks complete!" -ForegroundColor Green
-} else {
-    Write-Host "  ⚠ Some files may be missing" -ForegroundColor Red
-}
-Write-Host "`n========================================" -ForegroundColor Cyan
-Write-Host "  TESTING PYTHON IMPLEMENTATIONS" -ForegroundColor Cyan
-Write-Host "========================================`n" -ForegroundColor Cyan
-
-Write-Host "[1/4] Testing Stabilizer Extraction..." -ForegroundColor Yellow
-python implementations\stabilizer_extraction.py
-
-Write-Host "`n`n[2/4] Testing AGN Replication..." -ForegroundColor Yellow
-python implementations\agn_replication.py
-
-Write-Host "`n`n[3/4] Testing Curvature Residue..." -ForegroundColor Yellow
-python implementations\curvature_residue.py
-
-Write-Host "`n`n[4/4] Testing Lineage Logic..." -ForegroundColor Yellow
-python implementations\lineage_logic.py
-
-Write-Host "`n========================================" -ForegroundColor Cyan
-Write-Host "  ALL OPERATORS TESTED" -ForegroundColor Cyan
-Write-Host "========================================`n" -ForegroundColor Cyan
-Write-Host "`n========================================" -ForegroundColor Cyan
-Write-Host "  GIT INITIALIZATION" -ForegroundColor Cyan
-Write-Host "========================================`n" -ForegroundColor Cyan
-
-Write-Host "Initializing Git repository..." -ForegroundColor Yellow
-git init
-
-Write-Host "`nCreating .gitignore..." -ForegroundColor Yellow
-@'
-# Python
+# ──────────────────────────────────────────
+# NOTEBOOKS & ANALYSIS CACHE
+# ──────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
+.mypy_cache/
+.pytest_cache/
 
-# OS
+# ──────────────────────────────────────────
+# ENVIRONMENT & SECRETS
+# ──────────────────────────────────────────
+.env
+.env.*
+!.env.example
+mast_token.txt
+*.apikey
+
+# Python environments
+.venv/
+venv/
+env/
+.tox/
+
+# ──────────────────────────────────────────
+# LOGS & PIPELINE REPORTS
+# ──────────────────────────────────────────
+logs/
+*.log
+jwst_pipeline*.log
+asn_*.json
+*_manifest.txt
+
+# ──────────────────────────────────────────
+# EDITORS & OS
+# ──────────────────────────────────────────
 .DS_Store
 Thumbs.db
-
-# Editor
 .vscode/
 .idea/
 *.swp
-*.swo
+*~
+
+# ──────────────────────────────────────────
+# WHAT TO KEEP (force-include)
+# ──────────────────────────────────────────
+# !data/raw/README.md          # Archive download instructions
+# !references/crds_context.txt # CRDS context used for reduction
+# !notebooks/reduction.ipynb   # Pipeline walkthrough notebook
+# !config/jwst_pipeline.cfg    # Custom pipeline config
