@@ -1,0 +1,5 @@
+{
+  "name": "ha8-engine",
+  "version": "0.1.0",
+  "bin": { "ha8-engine": "./ha8-engine.js" }
+}
